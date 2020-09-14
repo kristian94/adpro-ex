@@ -24,22 +24,38 @@ object Exercises extends App with ExercisesInterface {
 
   // Exercise 3
 
-  def fib (n: Int): Int = ???
+  def fib (n: Int): Int = {
+    @annotation.tailrec
+    def f(n: Int, a: Int, b: Int): Int = {
+      if(n <= 1) a
+      else if(n <= 2) b else f(n-1, b, a + b)
+    }
+
+    f(n, 0, 1)
+  }
 
   // Exercise 4
 
-  def isSorted[A] (as: Array[A], ordered: (A,A) =>  Boolean): Boolean = ???
+  def isSorted[A] (as: Array[A], ordered: (A,A) =>  Boolean): Boolean = {
+    @annotation.tailrec
+    def go(n: Int, isSorted: Boolean): Boolean = {
+      if (isSorted == false || n + 1 >= as.length) isSorted
+      else go(n+1, ordered(as(n), as(n+1)))
+    }
+    go(0, true)
+  }
 
   // Exercise 5
 
-  def curry[A,B,C] (f: (A,B)=>C): A => (B => C) = ???
+  def curry[A,B,C] (f: (A,B)=>C): A => (B => C) = a => b => f(a, b)
 
   // Exercise 6
 
-  def uncurry[A,B,C] (f: A => B => C): (A,B) => C = ???
+  def uncurry[A,B,C] (f: A => B => C): (A,B) => C = (a, b) => f(a)(b)
 
   // Exercise 7
 
-  def compose[A,B,C] (f: B => C, g: A => B) : A => C = ???
+  def compose[A,B,C] (f: B => C, g: A => B) : A => C = x => f(g(x))
 
 }
+

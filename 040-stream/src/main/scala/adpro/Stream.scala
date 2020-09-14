@@ -48,46 +48,80 @@ sealed trait Stream[+A] {
 
   // Exercise 2
 
-  def toList: List[A] = ???
+  def toList: List[A] = foldLeft(List.empty: List[A])((cur, acc) => acc :+ cur );
 
   // Exercise 3
 
-  def take (n: Int): Stream[A] = ???
+  def take (n: Int): Stream[A] = this match {
+    case Cons(h, t) => if(n == 0) Empty else cons(h(), t().take(n - 1));
+    case _ => Empty;
+  }
 
-  def drop (n: Int): Stream[A] = ???
+
+  def drop (n: Int): Stream[A] = this match {
+    case Cons(h, t) => if(n > 0) t().drop(n - 1) else this;
+    case _ => Empty;
+  }
+
 
   // Exercise 4
 
-  def takeWhile (p: A => Boolean): Stream[A] = ???
+  def takeWhile (p: A => Boolean): Stream[A] = this match {
+    case Cons(h, t) => if(p(h())) cons(h(), t().takeWhile(p)) else Empty;
+    case _ => Empty;
+  }
+
 
   //Exercise 5
-  
-  def forAll (p: A => Boolean): Boolean = ???
+  // naturals.forAll(_ >= 0) - Every element in naturals are larger than 0, therefore it will never exit
+  def forAll (p: A => Boolean): Boolean = !this.exists(x => !p(x))
 
 
   //Exercise 6
-  
-  def takeWhile2 (p: A => Boolean): Stream[A] = ???
+  // no infinity support
+  def takeWhile2 (p: A => Boolean): Stream[A] = foldRight(Empty: Stream[A])((cur, acc) => if (p(cur)) cons(cur, acc) else Empty)
 
   //Exercise 7
 
-  def headOption2: Option[A] = ???
+  def headOption2: Option[A] = foldRight(None: Option[A])((cur, _) => Some(cur))
 
   //Exercise 8 The types of these functions are omitted as they are a part of the exercises
 
-  def map = ???
+  def map[B] (f: A => B): Stream[B] = foldRight(Empty: Stream[B])((curt, acc) => cons(f(curt), acc))
 
-  def filter = ???
+  // scala> naturals.map (_*2).drop (30).take (50).toList
+  // val res0: List[Int] = List(62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 136, 138, 140, 142, 144, 146, 148, 150, 152, 154, 156, 158, 160)
 
-  def append = ???
 
-  def flatMap = ???
+  def filter (p: A => Boolean): Stream[A] = foldRight(Empty: Stream[A])((curt, acc) => if (p(curt)) cons(curt, acc) else acc)
+
+  // scala> naturals.drop (42).filter (_%2 ==0).take (30).toList
+  // val res1: List[Int] = List(44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102)
+
+
+  // we are not really sure why we need the syntax 'B >: A' - can you explain?  
+  def append[B >: A] (that: => Stream[B]): Stream[B] = foldRight(that)((cur, acc) => cons(cur, acc))
+
+  // Gives a stack overflow error when run with the case from the exercises -> we are not sure why
+  def flatMap[B >: A] (f: A => Stream[B]): Stream[B] = foldRight(Empty: Stream[B])((cur, acc) => acc.append(() => f(cur)))
+
+  // note: Ctrl-h: 'kuken' -> 'cur'
+  // note: Ctrl-h: 'curt' -> 'kuken'
 
   //Exercise 09
   //Put your answer here:
+  /*
+    For a List, the implementation would cause every element of the List to be evaulauted by the call to 'filter'. But since
+    streams are lazy, we only evaluate elements until we find an 'x' where p(x) is true, instead of computing p(x) for all elements
+    (as we would do with the List implementation).
+
+  */
 
   //Exercise 10
-  //Put your answer here:
+  //Put your implementatino here:
+  def fifibb: Stream[Int] = 
+
+
 
   // Exercise 13
 
@@ -122,11 +156,11 @@ object Stream {
 
   // Exercise 1
 
-  def from (n: Int): Stream[Int] = ???
+  def from (n: Int): Stream[Int] = cons(n, from(n+1));
 
-  def to (n: Int): Stream[Int] = ???
+  def to (n: Int): Stream[Int] = cons(n, if(n == 0) Empty else to(n-1));
 
-  val naturals: Stream[Int] = ???
+  val naturals: Stream[Int] = from(1);
 
   //Exercise 11
 
@@ -138,4 +172,3 @@ object Stream {
   def from2 = ???
 
 }
-
