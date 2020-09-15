@@ -87,13 +87,13 @@ sealed trait Stream[+A] {
 
   //Exercise 8 The types of these functions are omitted as they are a part of the exercises
 
-  def map[B] (f: A => B): Stream[B] = foldRight(Empty: Stream[B])((curt, acc) => cons(f(curt), acc))
+  def map[B] (f: A => B): Stream[B] = foldRight(Empty: Stream[B])((cur, acc) => cons(f(cur), acc))
 
-  // scala> naturals.map (_*2).drop (30).take (50).toList
+  // scala> naturals.map(_*2).drop (30).take (50).toList
   // val res0: List[Int] = List(62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 136, 138, 140, 142, 144, 146, 148, 150, 152, 154, 156, 158, 160)
 
 
-  def filter (p: A => Boolean): Stream[A] = foldRight(Empty: Stream[A])((curt, acc) => if (p(curt)) cons(curt, acc) else acc)
+  def filter (p: A => Boolean): Stream[A] = foldRight(Empty: Stream[A])((cur, acc) => if (p(cur)) cons(cur, acc) else acc)
 
   // scala> naturals.drop (42).filter (_%2 ==0).take (30).toList
   // val res1: List[Int] = List(44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102)
@@ -103,10 +103,7 @@ sealed trait Stream[+A] {
   def append[B >: A] (that: => Stream[B]): Stream[B] = foldRight(that)((cur, acc) => cons(cur, acc))
 
   // Gives a stack overflow error when run with the case from the exercises -> we are not sure why
-  def flatMap[B >: A] (f: A => Stream[B]): Stream[B] = foldRight(Empty: Stream[B])((cur, acc) => acc.append(() => f(cur)))
-
-  // note: Ctrl-h: 'kuken' -> 'cur'
-  // note: Ctrl-h: 'curt' -> 'kuken'
+  def flatMap[B >: A] (f: A => Stream[B]): Stream[B] = foldRight(Empty: Stream[B])((cur, acc) => acc.append(f(cur)))
 
   //Exercise 09
   //Put your answer here:
@@ -117,18 +114,52 @@ sealed trait Stream[+A] {
 
   */
 
-  //Exercise 10
-  //Put your implementatino here:
-  def fifibb: Stream[Int] = 
+  // //Exercise 10
+  // //Put your solution here:
+  // def fib: Stream[Int] = from(0)
+// 
+  // def fifibb: Stream[Int] = this match {
+  //   case Empty => cons(0, cons(1, fifibb))
+  //   case Cons(x: () => Int, Cons(y: () => Int, _)) => cons(x(), cons(y(), cons(x() + y(), fifibb)))
+  // }
+// fifibb().take(5) = Stream{0,1,1,2,3}
 
 
 
   // Exercise 13
 
-  def map_ = ???
-  def take_ = ???
-  def takeWhile_ = ???
-  def zipWith_ = ???
+
+  def map_[B] (f: A => B): Stream[B] = unfold(this)(s => s.headOption.map(h => (f(h), s.tail)))
+  // scala> naturals.map_(_*2).drop (15).take (10).toList
+  // val res2: List[Int] = List(32, 34, 36, 38, 40, 42, 44, 46, 48, 50)
+
+
+  def take_ (n: Int): Stream[A] = unfold((this, 0))(s => {
+    val (stream, index) = s
+    if(index == n) None
+    else stream.headOption.map(h => (h, (stream.tail, index + 1)))  
+  })
+  // scala> naturals.map_(_*2).drop(15).take_(5).toList
+  // val res1: List[Int] = List(32, 34, 36, 38, 40)
+
+
+  def takeWhile_(p: A => Boolean): Stream[A] = unfold((this, 0))(s => {
+    val (stream, index) = s
+    stream.headOption.flatMap(h => if(p(h)) Some(h, (stream.tail, index + 1)) else None)  
+  })
+  // scala> naturals.map_(_*2).takeWhile_(x => x < 30).toList
+  // val res0: List[Int] = List(2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28)
+
+  
+  def zipWith_[B](that: Stream[B]): Stream[(A, B)] = unfold((this, that))(s => {
+    val (curA, curB) = s
+    for {
+      ha <- curA.headOption
+      hb <- curB.headOption
+    } yield ( ( (ha, hb), (curA.tail, curB.tail) ) )
+  })
+  // scala> naturals.zipWith_(naturals).take(5).toList
+  // val res1: List[(Int, Int)] = List((1,1), (2,2), (3,3), (4,4), (5,5))
 
 }
 
@@ -164,11 +195,17 @@ object Stream {
 
   //Exercise 11
 
-  def unfold [A, S] (z: S) (f: S => Option[(A, S)]): Stream[A] = ???
+  def unfold [A, S] (z: S) (f: S => Option[(A, S)]): Stream[A] = {
+    val option = f(z)
+    if(option != None) cons(option.get._1, unfold(option.get._2)(f)) else Empty
+  }
+
+  val naturals2 = unfold(0)(s => Some((s, s+1)));
 
   // Exercise 12
 
-  def fib2  = ???
-  def from2 = ???
+  def fib2 = unfold((0, 1))(s => Some((s._1, (s._2, s._1 + s._2))))
 
+  def from2 (n: Int): Stream[Int] = unfold(n)(s => Some((s, s + 1)))
+  
 }
