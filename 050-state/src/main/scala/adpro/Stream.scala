@@ -146,7 +146,10 @@ object Stream {
 
   //Exercise 11
 
-  def unfold [A, S] (z: S) (f: S => Option[(A, S)]): Stream[A] = ???
+  def unfold [A, S] (z: S) (f: S => Option[(A, S)]): Stream[A] = {
+    val option = f(z)
+    if(option != None) cons(option.get._1, unfold(option.get._2)(f)) else Empty
+  }
 
   // Exercise 12
 

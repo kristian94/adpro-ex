@@ -1,13 +1,17 @@
 // Advanced Programming, A. Wąsowski, IT University of Copenhagen
 //
-// Group number: _____
+// Group number: Team (k|ch)rist(ian|(o(ph|ff)er))
 //
-// AUTHOR1: __________
-// TIME1: _____ <- how much time have you used on solving this exercise set
+// AUTHOR1: Christopher Borum
+// TIME1: ca 4-5 hours <- how much time have you used on solving this exercise set
 // (excluding reading the book, fetching pizza, and going out for a smoke)
 //
-// AUTHOR2: __________
-// TIME2: _____ <- how much time have you used on solving this exercise set
+// AUTHOR2: Kristoffer Noga
+// TIME2: ca 4-5 hours <- how much time have you used on solving this exercise set
+// (excluding reading the book, fetching pizza, and going out for a smoke)
+//
+// AUTHOR3: Kristian Nielsen
+// TIME3: ca 4-5 hours <- how much time have you used on solving this exercise set
 // (excluding reading the book, fetching pizza, and going out for a smoke)
 
 package adpro
@@ -19,11 +23,13 @@ import scala.io.Source
 // Work through the file top-down, following the exercises from the week's
 // sheet.  Uncomment and complete code fragments.
 
-object Par {
+trait Future[+A] {
+  private[adpro] def apply(k: A => Unit): Unit
+}
 
-  trait Future[+A] {
-    private[adpro] def apply(k: A => Unit): Unit
-  }
+
+
+object Par {
 
   type Par[A] = ExecutorService => Future[A]
 
@@ -99,19 +105,41 @@ object Par {
   // Exercise 1
   //
   // Write the answer here in a comment.
+  //    if you pass by value, the computation of the value will 
+  //    be performed eagerly, and so it will not be parallelizable. Passing
+  //    by name allows computation to be deferred until we actually call "run".
+  // 
   
   // Exercise 2 (CB7.4)
 
-  def asyncF[A,B] (f: A => B) : A => Par[B] = ???
+  def asyncF[A,B] (f: A => B) : A => Par[B] = a => lazyUnit(f(a))
 
 
   // Exercise 3
   //
   // Write the answer here in a comment.
 
+  //    The first step in testing a function like map, is to define what
+  //    properties the function should have. With 'map', we would expect the
+  //    following properties:
+  //    
+  //    - mapping on a Par should return a Par
+  //    - mapping using a function f: A => B should return a Par[B]
+  //    - mapping should apply 'f' to the underlying value of the input Par,
+  //      such that:
+  //      Par(1).map(_ * 2) -> Par(2)
+  //    - mapping should retain the laziness of the orginal Par, such that its value
+  //      is not evaluated simply by mapping (not until we call "run", or something
+  //      similar)
+  //    
+  //    From here on we can write unit tests to ensure our implementation of Par
+  //    meets these criteria.
+
+
+
   // Exercise 4 (CB7.5)
 
-  def sequence[A] (ps: List[Par[A]]): Par[List[A]] = ???
+  def sequence[A] (ps: List[Par[A]]): Par[List[A]] = ps.foldRight(lazyUnit(List()): Par[List[A]])((cur: Par[A], acc: Par[List[A]]) => map2(cur, acc)(((c, a) => c +: a))) 
 
   // Exercise 5 (CB7.6)
 
@@ -120,12 +148,14 @@ object Par {
   def parMap[A,B] (as: List[A]) (f: A => B): Par[List[B]] =
     sequence (as map (asyncF (f)))
 
-  def parFilter[A] (as: List[A]) (f: A => Boolean): Par[List[A]] = ???
+  def parFilter[A] (as: List[A]) (f: A => Boolean): Par[List[A]] = as.map(x => lazyUnit(x)).foldRight(lazyUnit(List()): Par[List[A]])((cur: Par[A], acc: Par[List[A]]) => map2(cur, acc)(((c, a) => if(f(c)) c +: a else a))) 
 
   // Exercise 6
 
-  def map3[A,B,C,D] (pa :Par[A], pb: Par[B], pc: Par[C]) (f: (A,B,C) => D): 
-    Par[D] = ???
+  def map3[A,B,C,D] (pa: Par[A], pb: Par[B], pc: Par[C]) (f: (A,B,C) => D): Par[D] = map2(pa, map2(pb, pc)((b, c) => (b, c)))((a, t) => {
+    val (b, c) = t
+    f(a, b, c)
+  })
 
   // shown in the book (adjusted for the non-blocking version)
 
@@ -134,23 +164,52 @@ object Par {
 
   // Exercise 7 (CB7.11)
 
-  def choiceN[A] (n: Par[Int]) (choices: List[Par[A]]): Par[A] = ???
+  // original implementation
+  def _choiceN[A] (n: Par[Int]) (choices: List[Par[A]]): Par[A] = es => {
+    val _n = run(es)(n)
+    choices(_n)(es)
+  }
 
-  def choice[A] (n: Par[Boolean]) (t: Par[A], f: Par[A]): Par[A] = ???
+  // original implementation
+  def _choice[A] (n: Par[Boolean]) (t: Par[A], f: Par[A]): Par[A] = {
+    choiceN(map(n)(b => if(b == true) 0 else 1))(List(t, f))
+  }
 
   // Exercise 8 (CB7.13)
 
-  def chooser[A,B] (pa: Par[A]) (choices: A => Par[B]): Par[B] = ???
+  def chooser[A,B] (pa: Par[A]) (choices: A => Par[B]): Par[B] = es => {
+    val a = run(es)(pa)
+    choices(a)(es)
+  }
+
+  // implementations using 'chooser()' 
+  def choiceN[A] (n: Par[Int]) (choices: List[Par[A]]): Par[A] = chooser(n)(x => choices(x))
+
+  def choice[A] (n: Par[Boolean]) (t: Par[A], f: Par[A]): Par[A] = chooser(n)(b => if(b == true) t else f)
 
   // Exercise 9 (CB7.14)
 
-  def join[A] (a : Par[Par[A]]) :Par[A] = ???
-  
-  // Exercise 10
-  //
-  // ...
+  def join[A] (a : Par[Par[A]]) :Par[A] = es => run(es)(a)(es)
 
   // Exercise 11
 
-  def wget (uris: String*): List[String] = ???
+  def wget (uris: String*): List[String] = {
+    val es = Executors.newFixedThreadPool(4)
+    run(es)(parMap(uris.toList)(uri => scala.io.Source.fromURL(uri)("ISO-8859-1").mkString))
+  }
+}
+
+// Exercise 10
+//
+// ...
+
+// was able to call .map directly on a Par[Int] from the console, but tests failed...
+case class ParOps[A] (val par: Par.Par[A]) {
+  def map[B] (f: A => B) = Par.map(par)(f)
+}
+
+object ParOps {
+  implicit def parOps[A] (par: Par.Par[A]): ParOps[A] = {
+    ParOps(par)
+  }
 }
