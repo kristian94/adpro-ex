@@ -1,4 +1,4 @@
-// wasowski, Advanced Programming, IT University of Copenhagen
+// KoniKrnoChrbo, Advanced Programming, IT University of Copenhagen
 package fpinscala.laziness
 import scala.language.higherKinds
 
@@ -86,7 +86,8 @@ class StreamSpecKoniKrnoChrbo
 
       forAll { (s :Stream[Int]) => {
         val n = s.toList.size
-        val s1 = s.append(cons(???, ???)) // if ??? is forced it would throw an exeption
+        val s1 = s.append(cons(???, ???)) 
+        // if ??? is forced it would throw an exeption
         s1.take(n).toList
       } }
     }
@@ -115,7 +116,6 @@ class StreamSpecKoniKrnoChrbo
       
       s.drop(1).toList
     }
-    // The above should hold even if we force some stuff in the tail
 
   }
 
