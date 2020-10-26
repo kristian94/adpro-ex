@@ -34,35 +34,35 @@ object WarmupExercises {
 
 
   // Exercise 1
-  lazy val rng1: RNG = ???
+  lazy val rng1: RNG = Simple(42)
 
 
   // Exercise 2
-  lazy val x: Int = ???
-  lazy val y: Int = ???
+  lazy val x: Int = rng1.nextInt._1
+  lazy val y: Int = rng1.nextInt._2.nextInt._1
 
   // Exercise 3
-  lazy val s_random_int: State[RNG,Int] = ???
-  lazy val s_nonNegativeInt: State[RNG,Int] = ???
-  lazy val s_double: State[RNG,Double] = ???
+  lazy val s_random_int: State[RNG,Int] = State(rng => rng.nextInt)
+  lazy val s_nonNegativeInt: State[RNG,Int] = State(RNG.nonNegativeInt)
+  lazy val s_double: State[RNG,Double] = State(RNG.double)
 
-  lazy val random_int: Int =  ???
-  lazy val nonNegativeInt: Int =  ???
-  lazy val double: Double = ???
+  lazy val random_int: Int = s_random_int.run(rng1)._1
+  lazy val nonNegativeInt: Int = s_nonNegativeInt.run(rng1)._1
+  lazy val double: Double = s_double.run(rng1)._1
 
   import Gen.state2stream
 
   // Exercise 4
-  def randomDoubles (seed: RNG): Stream[Double] = ???
+  def randomDoubles (seed: RNG): Stream[Double] = state2stream(s_double)(seed)
 
-  lazy val someRandomDoubles: List[Double] = ???
-  lazy val moreRandomDoubles: List[Double] = ???
+  lazy val someRandomDoubles: List[Double] = randomDoubles(rng1).take(1000).toList
+  lazy val moreRandomDoubles: List[Double] = randomDoubles(rng1).drop(1000).take(1000).toList
 
   // Exercise 5
-  def impureRandomDoubles: Stream[Double] = ???
+  def impureRandomDoubles: Stream[Double] = randomDoubles(Simple(System.currentTimeMillis.toInt))
 
-  lazy val impureDoubles1: Stream[Double] = ???
-  lazy val impureDoubles2: Stream[Double] = ???
+  lazy val impureDoubles1: Stream[Double] = impureRandomDoubles.take(1000)
+  lazy val impureDoubles2: Stream[Double] = impureRandomDoubles.take(1000)
 
 }
 
@@ -79,11 +79,11 @@ case class Gen[A] (sample: State[RNG,A]) {
 
   // Exercise 8
 
-  def listOfN (n: Int): Gen[List[A]] = ???
+  def listOfN (n: Int): Gen[List[A]] = Gen(State.sequence(List.fill(n)(this).map(x => x.sample)))
 
   // Exercise 9
 
-  def flatMap[B] (f: A => Gen[B]): Gen[B] = ???
+  def flatMap[B] (f: A => Gen[B]): Gen[B] = Gen(this.sample.flatMap(a => f(a).sample))
 
   // It would be convenient to also have map  (uses flatMap)
 
@@ -91,11 +91,11 @@ case class Gen[A] (sample: State[RNG,A]) {
 
   // Exercise 10
 
-  def listOfN (size: Gen[Int]): Gen[List[A]] = ???
+  def listOfN (size: Gen[Int]): Gen[List[A]] = size.flatMap(n => listOfN(n))
 
   // Exercise 11
 
-  def union (that: Gen[A]): Gen[A] = ???
+  def union (that: Gen[A]): Gen[A] = Gen.boolean.flatMap(c => if (c) this else that)
 
   // Exercise 12 continues in the companion object (below)
 }
@@ -115,15 +115,15 @@ object Gen {
 
   // Exercise 6
 
-  def choose (start: Int, stopExclusive: Int): Gen[Int] = ???
+  def choose (start: Int, stopExclusive: Int): Gen[Int] = anyInteger.map(x => (Math.abs(x) % (stopExclusive - start)) + start)
 
   // Exercise 7
 
-  def unit[A] (a: =>A): Gen[A] = ???
+  def unit[A] (a: =>A): Gen[A] = Gen(State(x => (a, x)))
 
-  def boolean: Gen[Boolean] = ???
+  def boolean: Gen[Boolean] = anyInteger.map(x => x % 2 == 0)
 
-  def double: Gen[Double] = ???
+  def double: Gen[Double] = Gen(State(RNG.double))
 
   // (Exercise 8 is found in the Gen class above)
 
@@ -181,10 +181,23 @@ case class Prop (run: (TestCases,RNG)=>Result) {
 
   // (Exercise 12)
 
-  def && (that: Prop): Prop = ???
+  def && (that: Prop): Prop = new Prop((tc, rng) => {
+    val r1 = this.run(tc, rng)
+    val r2 = this.run(tc, rng)
+    if(r1.isFalsified) r1
+    else if(r2.isFalsified) r2
+    else Passed
+  })
 
-  def || (that: Prop): Prop = ???
+  def || (that: Prop): Prop = new Prop((tc, rng) => {
+    val r1 = this.run(tc, rng)
+    val r2 = this.run(tc, rng)
 
+    (r1, r2) match {
+      case (Falsified(f1, s1), Falsified(f2, s2)) => Falsified(f1 + f2, s1 + s2)
+      case _ => Passed
+    }
+  })
 }
 
 // vim:cc=80:foldmethod=indent:nofoldenable
